@@ -1,0 +1,252 @@
+@startuml
+
+title FinUnion + RetailBank — логическая модель ключевых данных
+
+hide methods
+hide stereotypes
+hide circle
+
+skinparam shadowing false
+skinparam linetype ortho
+
+skinparam entity {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+}
+
+
+entity "Клиент" as Customer {
+  * customer_id
+  --
+  party_type
+  name
+  tax_id
+  birth_date / birth_place
+  identity_document
+  status
+}
+
+entity "Счёт" as Account {
+  * account_id
+  --
+  customer_id
+  account_number
+  currency
+  status
+}
+
+entity "Договор" as Agreement {
+  * agreement_id
+  --
+  product_id?
+  agreement_number
+  signed_at / signing_place
+  parties / party_roles
+  party_details
+  signatures
+  loan_amount / currency
+  loan_term / interest_rate
+  disbursement_method
+  status
+}
+
+entity "Транзакция" as Tx {
+  * transaction_id
+  --
+  transaction_number
+  account_id
+  payment_order_id?
+  amount / currency
+  balance_direction
+  transaction_type
+  recipient_details
+  payment_instrument
+  commission
+  booked_at
+  status
+}
+
+entity "Кредитный продукт" as Product {
+  * product_id
+  --
+  product_code
+  version
+  product_type
+  purpose / currency
+  amount_rule / term_rule
+  interest_rule
+  disbursement_rule
+  valid_from / valid_to
+  status
+}
+
+entity "Тариф" as Tariff {
+  * tariff_id
+  --
+  tariff_code
+  version
+  tariff_type
+  currency
+  calculation_method
+  calculation_parameters
+  valid_from / valid_to
+  status
+}
+
+entity "Обращение клиента" as CustomerCase {
+  * case_id
+  --
+  customer_id
+  case_number
+  case_type
+  category / subcategory
+  priority
+  channel
+  status
+  opened_at / closed_at
+  sla_parameters
+}
+
+entity "Справочник" as Reference {
+  * reference_id
+  --
+  dictionary_code
+  code
+  parent_reference_id?
+  name
+  status
+  valid_from / valid_to
+}
+
+entity "Согласие" as Consent {
+  * consent_id
+  --
+  customer_id
+  processing_purpose
+  granted_at
+  revoked_at
+  valid_to
+  status
+  evidence_document_ref
+}
+
+entity "График платежей" as Schedule {
+  * schedule_id
+  --
+  agreement_id
+  schedule_number
+  version
+  payments / payment_attributes
+  payment_type
+  valid_from / valid_to
+  status
+}
+
+entity "ПДН" as DebtBurden {
+  * pdn_calculation_id
+  --
+  customer_id
+  agreement_id
+  income_inputs
+  debt_inputs
+  pdn_value
+  method_version
+  calculated_at
+  status
+}
+
+entity "ПСК" as TotalCreditCost {
+  * psk_calculation_id
+  --
+  agreement_id
+  schedule_id?
+  psk_value
+  method_version
+  calculated_at
+  status
+}
+
+entity "Дополнительная услуга" as Service {
+  * service_id
+  --
+  service_code
+  service_type
+  product_parameters
+  status
+}
+
+entity "Платёжное поручение" as PaymentOrder {
+  * payment_order_id
+  --
+  initiator_customer_id
+  debit_account_id
+  recipient_details
+  amount / currency
+  payment_purpose
+  channel
+  status
+  idempotency_scope / idempotency_key
+  created_at / executed_at
+}
+
+
+' Клиенты, договоры и счета
+
+Customer }o--o{ Agreement : является стороной
+Customer ||--o{ Account : владеет
+Agreement }o--o{ Account : использует
+
+
+' Кредитные продукты и дополнительные услуги
+
+Product |o--o{ Agreement : задаёт кредитные условия
+Product }o--o{ Service : допускает
+Agreement }o--o{ Service : включает
+
+
+' Тарифы
+
+Customer }o--o{ Tariff : обслуживается по
+Account }o--o{ Tariff : тарифицируется по
+
+
+' Платёжные поручения и транзакции
+
+Customer ||--o{ PaymentOrder : инициирует
+Account ||--o{ PaymentOrder : счёт списания
+
+Account ||--o{ Tx : учитывает
+PaymentOrder |o--o{ Tx : порождает
+
+
+' Графики и расчётные показатели
+
+Agreement ||--o{ Schedule : имеет версии графика
+
+Customer ||--o{ DebtBurden : оценивается
+Agreement ||--o{ DebtBurden : задаёт контекст расчёта
+
+Agreement ||--o{ TotalCreditCost : имеет расчёты ПСК
+Schedule |o--o{ TotalCreditCost : используется в расчёте
+
+
+' Обслуживание клиента
+
+Customer ||--o{ CustomerCase : обращается
+Customer ||--o{ Consent : выдаёт
+
+
+' Справочники и классификация
+
+Reference ..> Customer : классифицирует
+Reference ..> Account : классифицирует
+Reference ..> Agreement : классифицирует
+Reference ..> Tx : классифицирует
+Reference ..> Product : классифицирует
+Reference ..> Tariff : классифицирует
+Reference ..> Service : классифицирует
+Reference ..> PaymentOrder : классифицирует
+Reference ..> CustomerCase : классифицирует
+
+
+@enduml
